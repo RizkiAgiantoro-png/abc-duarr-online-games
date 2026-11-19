@@ -1,3 +1,5 @@
+export const MIN_PLAYERS = 2;
+export const MAX_PLAYERS = 5;
 export const themes = ['Benda', 'Pekerjaan', 'Hewan', 'Anime', 'Makanan'] as const;
 export type Theme = typeof themes[number];
 export const events = ['reverse', 'speed', 'double', 'forbidden', 'quick', 'panic'] as const;

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { cards, events, reactions, themes } from '../shared/game.js';
+import { cards, events, MAX_PLAYERS, MIN_PLAYERS, reactions, themes } from '../shared/game.js';
 import type {
   Action, Card, ChaosEvent, Effect, GameView, Phase, Reaction, Result, Stats, Theme, Vote,
 } from '../shared/game.js';
@@ -98,7 +98,7 @@ export class Room {
 
   add(name: string, socket: string) {
     requireGame(this.phase === 'lobby', 'Pertandingan sudah dimulai.');
-    requireGame(this.players.size < 5, 'Room sudah penuh.');
+    requireGame(this.players.size < MAX_PLAYERS, 'Room sudah penuh.');
     requireGame(![...this.players.values()].some(p => p.name.toLowerCase() === name.toLowerCase()), 'Nama itu sudah dipakai.');
     const used = new Set([...this.players.values()].map(p => p.color));
     const player: Player = {
@@ -231,7 +231,7 @@ export class Room {
 
   private start() {
     const roster = [...this.players.values()].filter(p => !p.left);
-    requireGame(roster.length >= 4 && roster.every(p => p.socket), 'Butuh minimal 4 pemain dan semuanya harus terhubung.');
+    requireGame(roster.length >= MIN_PLAYERS && roster.every(p => p.socket), `Butuh minimal ${MIN_PLAYERS} pemain dan semuanya harus terhubung.`);
     for (const [id, p] of this.players) {
       if (p.left) {
         this.players.delete(id);

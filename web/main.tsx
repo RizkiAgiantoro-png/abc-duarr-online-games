@@ -4,7 +4,7 @@ import {
   AudioLines, Check, CircleHelp, Copy, Crown, Hand, Heart, LogOut, Plus,
   Radio, Settings2, Sparkles, Timer, Trophy, Users, X, Zap,
 } from 'lucide-react';
-import { reactions, themes, type Action, type GameView, type PlayerView, type Result } from '../shared/game.js';
+import { MAX_PLAYERS, MIN_PLAYERS, reactions, themes, type Action, type GameView, type PlayerView, type Result } from '../shared/game.js';
 import { getSound, music, sound, unlockSound, type SoundSettings } from './audio.js';
 import { cardText, chaosText, themeIcons } from './content.js';
 import { useGame } from './network.js';
@@ -71,7 +71,7 @@ function Landing({ connected, restoring, send }: { connected: boolean; restoring
           {restoring ? 'Memulihkan sesi…' : !connected ? 'Menyambungkan…' : busy ? 'Tunggu sebentar…' : mode === 'create' ? 'Buat room' : 'Gabung room'}
         </button>
       </form>
-      <div className="entry-detail"><Users size={17} /> 4–5 pemain <span /> <Zap size={16} /> Real-time</div>
+      <div className="entry-detail"><Users size={17} /> {MIN_PLAYERS}–{MAX_PLAYERS} pemain <span /> <Zap size={16} /> Real-time</div>
     </section>
     <footer className="footer"><b>ABC DUARR!</b><span>ABC Lima Dasar versi party game</span></footer>
   </main>;
@@ -92,7 +92,7 @@ function Roster({ view, effect }: { view: GameView; effect: ReturnType<typeof us
   const lobby = view.phase === 'lobby';
   const players = view.players.filter(player => !player.left || !lobby);
   return <section className="panel roster">
-    <div className="section-title"><h2>Pemain</h2><span className="chip">{lobby ? `${players.length}/5` : `${players.filter(p => p.hearts > 0 && !p.left).length} aktif`}</span></div>
+    <div className="section-title"><h2>Pemain</h2><span className="chip">{lobby ? `${players.length}/${MAX_PLAYERS}` : `${players.filter(p => p.hearts > 0 && !p.left).length} aktif`}</span></div>
     <div className="players">
       {players.map(p => {
         const value = effect?.value;
@@ -110,7 +110,7 @@ function Roster({ view, effect }: { view: GameView; effect: ReturnType<typeof us
           {!lobby && <Hearts count={p.hearts} />}
         </div>;
       })}
-      {lobby && Array.from({ length: 5 - players.length }, (_, i) => <div className="player empty" key={i}><span className="avatar"><Plus size={17}/></span><span>Slot kosong</span></div>)}
+      {lobby && Array.from({ length: MAX_PLAYERS - players.length }, (_, i) => <div className="player empty" key={i}><span className="avatar"><Plus size={17}/></span><span>Slot kosong</span></div>)}
     </div>
   </section>;
 }
@@ -141,7 +141,7 @@ async function copyText(value: string, toast: (text: string) => void) {
 }
 
 function Lobby({ view, send, toast }: { view: GameView; send: Send; toast: (text: string) => void }) {
-  const ready = view.players.length >= 4 && view.players.every(p => p.online);
+  const ready = view.players.length >= MIN_PLAYERS && view.players.every(p => p.online);
   const link = new URL(location.href);
   link.searchParams.set('room', view.code);
   return <section className="panel stage lobby">
@@ -152,7 +152,7 @@ function Lobby({ view, send, toast }: { view: GameView; send: Send; toast: (text
     <button className="text-action" onClick={() => void copyText(link.toString(), toast)}>Salin link undangan</button>
     <Settings view={view} send={send} />
     {view.host === view.me ? <button className="button primary wide" disabled={!ready} onClick={() => void send({ type: 'start' })}><Zap size={18} /> Mulai permainan</button> : <p className="notice">Menunggu host memulai permainan.</p>}
-    {!ready && <p className="hint">Butuh minimal 4 pemain yang semuanya terhubung.</p>}
+    {!ready && <p className="hint">Butuh minimal {MIN_PLAYERS} pemain yang semuanya terhubung.</p>}
   </section>;
 }
 
@@ -199,7 +199,7 @@ function PowerCard({ view, send }: { view: GameView; send: Send }) {
 function MatchStats({ view, send }: { view: GameView; send: Send }) {
   const winner = view.players.find(p => p.id === view.winner);
   const remaining = view.players.filter(p => !p.left);
-  const ready = remaining.length >= 4 && remaining.every(p => p.online);
+  const ready = remaining.length >= MIN_PLAYERS && remaining.every(p => p.online);
   return <section className="panel stage winner">
     <div className="stage-icon trophy"><Trophy size={31}/></div>
     <h1>{winner ? winner.name : 'Pertandingan selesai'}</h1>
@@ -213,7 +213,7 @@ function MatchStats({ view, send }: { view: GameView; send: Send }) {
     <div className="elimination-list"><h3>Urutan eliminasi</h3><ol>{view.eliminations.map(id => <li key={id}>{view.players.find(p => p.id === id)?.name}</li>)}</ol>{!view.eliminations.length && <p>Belum ada pemain tereliminasi.</p>}</div>
     <Settings view={view} send={send} />
     {view.me === view.host ? <button className="button primary wide" disabled={!ready} onClick={() => void send({ type: 'rematch' })}><Zap size={18} /> Main lagi</button> : <p className="notice">Host bisa memulai pertandingan ulang.</p>}
-    {!ready && <p className="hint">Butuh minimal 4 pemain yang semuanya terhubung untuk bermain lagi.</p>}
+    {!ready && <p className="hint">Butuh minimal {MIN_PLAYERS} pemain yang semuanya terhubung untuk bermain lagi.</p>}
   </section>;
 }
 
@@ -352,7 +352,7 @@ function App() {
     </main>}
     {(message || effectMessage) && <div className="toast" role="status">{message?.text ?? effectMessage}</div>}
     {modal === 'help' && <Dialog title="Cara main" close={() => setModal(null)}><ol className="rules">
-      <li>Kumpulkan 4–5 pemain. Host memilih tema dan bisa mengaktifkan Mode Chaos.</li>
+      <li>Kumpulkan {MIN_PLAYERS}–{MAX_PLAYERS} pemain. Host memilih tema dan bisa mengaktifkan Mode Chaos.</li>
       <li>Pilih 1–10 jari. Total semua pilihan menentukan huruf untuk ronde itu.</li>
       <li>Saat giliranmu, jawab sesuai tema dengan huruf yang ditentukan. Jawaban yang pernah dipakai tidak bisa diulang.</li>
       <li>Pemain lain menilai jawabanmu. Jawaban salah atau kehabisan waktu mengurangi nyawa. Pemain terakhir yang bertahan menang.</li>

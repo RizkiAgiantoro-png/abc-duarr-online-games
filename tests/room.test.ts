@@ -3,12 +3,12 @@ import { test, type TestContext } from 'node:test';
 import { events, type Effect } from '../shared/game.js';
 import { alphabetFrom, durations, Room, tally } from '../server/room.js';
 
-function game(t: TestContext, random: () => number = () => 0.99, chaos = false) {
+function game(t: TestContext, random: () => number = () => 0.99, chaos = false, playerCount = 4) {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 10_000 });
   const effects: Effect[] = [];
   const room = new Room('ABC234', () => {}, effect => effects.push(effect), random);
   t.after(() => room.dispose());
-  const players = ['Ayu', 'Bima', 'Citra', 'Dodi'].map((name, i) => room.add(name, String(i)));
+  const players = ['Ayu', 'Bima', 'Citra', 'Dodi', 'Eka'].slice(0, playerCount).map((name, i) => room.add(name, String(i)));
   const ids = players.map(p => p.id);
   const view = () => room.view(ids[0]);
   room.action(ids[0], { type: 'settings', theme: 'Hewan', chaos });
@@ -38,6 +38,36 @@ test('alfabet berulang, voting mayoritas, seri, dan kuorum', () => {
   assert.equal(tally(['correct', 'correct', 'wrong'], 3).outcome, 'correct');
   assert.equal(tally(['correct', 'wrong'], 3).outcome, 'wrong');
   assert.equal(tally(['wrong'], 4).outcome, 'neutral');
+});
+
+test('dua pemain bisa bermain, voting dengan satu pemilih, dan rematch', t => {
+  const { room, ids, view, fingers, answer, vote } = game(t, () => 0.99, false, 2);
+  assert.equal(view().fingerGoal, 2);
+  for (let round = 1; round <= 3; round++) {
+    fingers();
+    assert.equal(view().letter, 'B');
+    while (view().phase === 'answer') {
+      const hostTurn = view().turn === ids[0];
+      answer(hostTurn ? `Burung ${round}` : `Banteng ${round}`);
+      assert.equal(view().voteGoal, 1);
+      vote(hostTurn ? 'correct' : 'wrong');
+      if (view().phase === 'winner') break;
+      assert.equal(view().result?.outcome, hostTurn ? 'correct' : 'wrong');
+      t.mock.timers.tick(durations.result);
+    }
+  }
+  assert.equal(view().winner, ids[0]);
+  assert.deepEqual(view().eliminations, [ids[1]]);
+  room.action(ids[0], { type: 'rematch' });
+  assert.equal(view().phase, 'fingers');
+  assert.equal(view().fingerGoal, 2);
+  assert.ok(view().players.every(p => p.hearts === 3));
+});
+
+test('tiga pemain bisa memulai pertandingan', t => {
+  const { view } = game(t, () => 0.99, false, 3);
+  assert.equal(view().phase, 'fingers');
+  assert.equal(view().fingerGoal, 3);
 });
 
 test('jari otomatis, giliran berputar, validasi huruf dan duplikat', t => {
